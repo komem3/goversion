@@ -14,11 +14,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/google/subcommands"
 	"github.com/schollz/progressbar/v3"
 )
@@ -33,21 +30,17 @@ const (
 	targetArch = "amd64"
 )
 
-var currentGoVersion = runtime.Version()
-
-var versionRegex = regexp.MustCompile(`go[1-9]\.+[0-9]{1,2}(\.+[0-9]{1,2})?`)
-
 type upgradeCmd struct {
-	client *http.Client
+	*baseCmd
 }
 
 func NewUpgradeCmd() subcommands.Command {
-	return &upgradeCmd{client: &http.Client{}}
+	return &upgradeCmd{&baseCmd{&http.Client{}}}
 }
 
 // Execute implements subcommands.Command
 func (cmd *upgradeCmd) Execute(ctx context.Context, _ *flag.FlagSet, _ ...any) subcommands.ExitStatus {
-	if err := cmd.upgrade(ctx); err != nil {
+	if err := cmd.Upgrade(ctx); err != nil {
 		log.Printf("[ERR] %v", err)
 		return subcommands.ExitFailure
 	}
@@ -72,12 +65,13 @@ func (*upgradeCmd) Usage() string {
 	return "upgrade"
 }
 
-func (cmd *upgradeCmd) upgrade(ctx context.Context) error {
+func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
 	url, err := cmd.getDownloadURL(ctx)
 	if err != nil {
 		return fmt.Errorf("get download URL: %w", err)
 	}
-	if !yesno("Do you upgrade go to %s?", versionRegex.FindString(url)) {
+
+	if !yesno("Do you upgrade to %s?", versionRegex.FindString(url)) {
 		log.Printf("[INFO] cancel")
 		return nil
 	}
@@ -109,39 +103,6 @@ func (cmd *upgradeCmd) upgrade(ctx context.Context) error {
 	log.Printf("[INFO] upgrade success")
 
 	return nil
-}
-
-func (cmd *upgradeCmd) getDownloadURL(ctx context.Context) (string, error) {
-	const downlaodURL = baseURL + "/dl"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downlaodURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("new request: %w", err)
-	}
-
-	res, err := cmd.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request %s: %w", downlaodURL, err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("response status is %d", res.StatusCode)
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return "", fmt.Errorf("load the HTML document: %w", err)
-	}
-
-	href, exists := doc.Find(".downloadtable .download").FilterFunction(func(_ int, s *goquery.Selection) bool {
-		text := s.Text()
-		return filepath.Ext(text) == ".gz" && strings.Contains(text, targetOS) && strings.Contains(text, targetArch)
-	}).Attr("href")
-	if !exists {
-		return "", fmt.Errorf("html element does not have href")
-	}
-
-	return baseURL + href, nil
 }
 
 func (cmd *upgradeCmd) downloadGo(ctx context.Context, url string) (string, error) {

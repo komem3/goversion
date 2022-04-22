@@ -10,8 +10,8 @@ import (
 
 func main() {
 	subcommands.Register(subcommands.HelpCommand(), "")
-	subcommands.Register(subcommands.CommandsCommand(), "")
 	subcommands.Register(NewUpgradeCmd(), "")
+	subcommands.Register(NewLatestCmd(), "")
 
 	flag.Parse()
 	ctx := context.Background()
