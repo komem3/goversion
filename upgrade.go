@@ -26,6 +26,7 @@ const (
 )
 
 const (
+	rootUserID = 0
 	targetOS   = "linux"
 	targetArch = "amd64"
 )
@@ -65,7 +66,23 @@ func (*upgradeCmd) Usage() string {
 	return "upgrade"
 }
 
+const userQuestion = "Current user is not root user.\n" +
+	recommendMessage +
+	"Do you continue upgrade process?"
+
+const recommendMessage = `Recommend that you run it again with the following command.
+
+	sudo $(go env GOPATH)/bin/goversion upgrade
+
+`
+
 func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
+	if os.Getuid() != rootUserID &&
+		!yesno(userQuestion) {
+		log.Printf("[INFO] cancel")
+		return nil
+	}
+
 	url, err := cmd.getDownloadURL(ctx)
 	if err != nil {
 		return fmt.Errorf("get download URL: %w", err)
@@ -94,6 +111,9 @@ func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
 	}
 
 	if err := os.RemoveAll(gopath); err != nil {
+		if os.IsPermission(err) {
+			log.Printf("[ERR] %s", recommendMessage)
+		}
 		return fmt.Errorf("remove %s: %w", gopath, err)
 	}
 	if err := os.Rename(filepath.Join(extractDir, "go"), gopath); err != nil {
