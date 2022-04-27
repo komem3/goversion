@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -48,4 +50,15 @@ func (cmd *baseCmd) getDownloadURL(ctx context.Context) (string, error) {
 	}
 
 	return baseURL + href, nil
+}
+
+func (*baseCmd) goEnv(ctx context.Context, env string) string {
+	cmd := exec.CommandContext(ctx, "go", "env", env)
+
+	out, err := cmd.Output()
+	if err != nil {
+		log.Printf("[ERR] go env %s: %v", env, err)
+		return ""
+	}
+	return string(out)
 }

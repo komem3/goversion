@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	baseURL = "https://go.dev"
-	gopath  = "/usr/local/go"
+	baseURL       = "https://go.dev"
+	defaultGoRoot = "/usr/local/go"
 )
 
 const (
@@ -105,19 +105,24 @@ func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
 		return fmt.Errorf("extract %s: %w", archiveFile, err)
 	}
 
-	if !yesno("Do you really overwrite %s?", gopath) {
+	if !yesno("Do you really overwrite %s?", defaultGoRoot) {
 		log.Printf("[INFO] cancel")
 		return nil
 	}
 
-	if err := os.RemoveAll(gopath); err != nil {
+	goroot := cmd.goEnv(ctx, "GOROOT")
+	if goroot == "" {
+		goroot = defaultGoRoot
+	}
+
+	if err := os.RemoveAll(goroot); err != nil {
 		if os.IsPermission(err) {
 			log.Printf("[ERR] %s", recommendMessage)
 		}
-		return fmt.Errorf("remove %s: %w", gopath, err)
+		return fmt.Errorf("remove %s: %w", goroot, err)
 	}
-	if err := os.Rename(filepath.Join(extractDir, "go"), gopath); err != nil {
-		return fmt.Errorf("rename from %s to %s: %w", extractDir, gopath, err)
+	if err := os.Rename(filepath.Join(extractDir, "go"), goroot); err != nil {
+		return fmt.Errorf("rename from %s to %s: %w", extractDir, goroot, err)
 	}
 
 	log.Printf("[INFO] upgrade success")
