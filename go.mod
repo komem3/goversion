@@ -2,10 +2,7 @@ module github.com/komem3/goversion
 
 go 1.18
 
-require (
-	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/google/subcommands v1.2.0
-)
+require github.com/PuerkitoBio/goquery v1.8.0
 
 require (
 	github.com/andybalholm/cascadia v1.3.1 // indirect

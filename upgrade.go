@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -16,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/subcommands"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -31,41 +29,6 @@ const (
 	targetArch = "amd64"
 )
 
-type upgradeCmd struct {
-	*baseCmd
-}
-
-func NewUpgradeCmd() subcommands.Command {
-	return &upgradeCmd{&baseCmd{&http.Client{}}}
-}
-
-// Execute implements subcommands.Command
-func (cmd *upgradeCmd) Execute(ctx context.Context, _ *flag.FlagSet, _ ...any) subcommands.ExitStatus {
-	if err := cmd.Upgrade(ctx); err != nil {
-		log.Printf("[ERR] %v", err)
-		return subcommands.ExitFailure
-	}
-	return subcommands.ExitSuccess
-}
-
-// Name implements subcommands.Command
-func (*upgradeCmd) Name() string {
-	return "upgrade"
-}
-
-// SetFlags implements subcommands.Command
-func (*upgradeCmd) SetFlags(*flag.FlagSet) {}
-
-// Synopsis implements subcommands.Command
-func (*upgradeCmd) Synopsis() string {
-	return "upgrade global go version"
-}
-
-// Usage implements subcommands.Command
-func (*upgradeCmd) Usage() string {
-	return "upgrade"
-}
-
 const userQuestion = "Current user is not root user.\n" +
 	recommendMessage +
 	"Do you continue upgrade process?"
@@ -76,7 +39,7 @@ const recommendMessage = `Recommend that you run it again with the following com
 
 `
 
-func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
+func (cmd *Command) Upgrade(ctx context.Context) error {
 	if os.Getuid() != rootUserID &&
 		!yesno(userQuestion) {
 		log.Printf("[INFO] cancel")
@@ -130,7 +93,7 @@ func (cmd *upgradeCmd) Upgrade(ctx context.Context) error {
 	return nil
 }
 
-func (cmd *upgradeCmd) downloadGo(ctx context.Context, url string) (string, error) {
+func (cmd *Command) downloadGo(ctx context.Context, url string) (string, error) {
 	tmpFile, err := os.CreateTemp(os.TempDir(), "*-"+path.Base(url))
 	if err != nil {
 		return "", fmt.Errorf("create temp file: %w", err)
@@ -163,7 +126,7 @@ func (cmd *upgradeCmd) downloadGo(ctx context.Context, url string) (string, erro
 	return tmpFile.Name(), nil
 }
 
-func (*upgradeCmd) extract(filename string) (string, error) {
+func (*Command) extract(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)

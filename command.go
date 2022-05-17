@@ -13,22 +13,27 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const downloadURL = baseURL + "/dl"
+
 var versionRegex = regexp.MustCompile(`go[1-9]\.+[0-9]{1,2}(\.+[0-9]{1,2})?`)
 
-type baseCmd struct {
+type Command struct {
 	client *http.Client
 }
 
-func (cmd *baseCmd) getDownloadURL(ctx context.Context) (string, error) {
-	const downlaodURL = baseURL + "/dl"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downlaodURL, nil)
+func NewCommand() *Command {
+	return &Command{&http.Client{}}
+}
+
+func (cmd *Command) getDownloadURL(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("new request: %w", err)
 	}
 
 	res, err := cmd.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request %s: %w", downlaodURL, err)
+		return "", fmt.Errorf("request %s: %w", downloadURL, err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
@@ -52,7 +57,7 @@ func (cmd *baseCmd) getDownloadURL(ctx context.Context) (string, error) {
 	return baseURL + href, nil
 }
 
-func (*baseCmd) goEnv(ctx context.Context, env string) string {
+func (*Command) goEnv(ctx context.Context, env string) string {
 	cmd := exec.CommandContext(ctx, "go", "env", env)
 
 	out, err := cmd.Output()
@@ -60,5 +65,10 @@ func (*baseCmd) goEnv(ctx context.Context, env string) string {
 		log.Printf("[ERR] go env %s: %v", env, err)
 		return ""
 	}
-	return string(out)
+
+	output := string(out)
+	if output[len(output)-1] == '\n' {
+		output = output[:len(output)-1]
+	}
+	return output
 }
