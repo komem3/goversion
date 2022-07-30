@@ -18,10 +18,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-const (
-	baseURL       = "https://go.dev"
-	defaultGoRoot = "/usr/local/go"
-)
+const defaultGoRoot = "/usr/local/go"
 
 const (
 	rootUserID = 0
@@ -35,7 +32,7 @@ const userQuestion = "Current user is not root user.\n" +
 
 const recommendMessage = `Recommend that you run it again with the following command.
 
-	sudo $(go env GOPATH)/bin/goversion upgrade
+	sudo $(go env GOPATH)/bin/goversion -upgrade
 
 `
 
@@ -46,12 +43,16 @@ func (cmd *Command) Upgrade(ctx context.Context) error {
 		return nil
 	}
 
-	url, err := cmd.getDownloadURL(ctx)
+	versions, err := cmd.getGoVersions(ctx, false)
 	if err != nil {
 		return fmt.Errorf("get download URL: %w", err)
 	}
 
-	if !yesno("Do you upgrade to %s?", versionRegex.FindString(url)) {
+	url := versions[0].getDownloadURL()
+	if url == "" {
+		return fmt.Errorf("missing install target for %s", versions[0].Version)
+	}
+	if !yesno("Do you upgrade to %s?", versions[0].Version) {
 		log.Printf("[INFO] cancel")
 		return nil
 	}
@@ -73,19 +74,14 @@ func (cmd *Command) Upgrade(ctx context.Context) error {
 		return nil
 	}
 
-	goroot := cmd.goEnv(ctx, "GOROOT")
-	if goroot == "" {
-		goroot = defaultGoRoot
-	}
-
-	if err := os.RemoveAll(goroot); err != nil {
+	if err := os.RemoveAll(defaultGoRoot); err != nil {
 		if os.IsPermission(err) {
 			log.Printf("[ERR] %s", recommendMessage)
 		}
-		return fmt.Errorf("remove %s: %w", goroot, err)
+		return fmt.Errorf("remove %s: %w", defaultGoRoot, err)
 	}
-	if err := os.Rename(filepath.Join(extractDir, "go"), goroot); err != nil {
-		return fmt.Errorf("rename from %s to %s: %w", extractDir, goroot, err)
+	if err := os.Rename(filepath.Join(extractDir, "go"), defaultGoRoot); err != nil {
+		return fmt.Errorf("rename from %s to %s: %w", extractDir, defaultGoRoot, err)
 	}
 
 	log.Printf("[INFO] upgrade success")

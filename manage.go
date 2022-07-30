@@ -31,6 +31,6 @@ func (cmd *Command) OutputLocalVersions(ctx context.Context) error {
 		}
 	}
 
-	fmt.Printf("local versions\n%s\n", strings.Join(versions, "\n"))
+	fmt.Printf("local versions:\n%s\n", strings.Join(versions, "\n"))
 	return nil
 }

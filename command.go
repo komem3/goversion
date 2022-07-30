@@ -2,18 +2,35 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
-	"path/filepath"
 	"regexp"
-	"strings"
-
-	"github.com/PuerkitoBio/goquery"
+	"runtime"
 )
 
-const downloadURL = baseURL + "/dl"
+type GoVersion struct {
+	Version string `json:"version"`
+	Stable  bool   `json:"stable"`
+	Files   []struct {
+		Filename string `json:"filename"`
+		OS       string `json:"os"`
+		Arch     string `json:"arch"`
+		Version  string `json:"version"`
+		Sha256   string `json:"sha_256"`
+		Size     int    `json:"size"`
+		Kind     string `json:"kind"`
+	} `json:"files"`
+}
+
+type GoVersions []*GoVersion
+
+const (
+	baseURL     = "https://go.dev/dl/?mode=json"
+	downloadURL = "https://storage.googleapis.com/golang/"
+)
 
 var versionRegex = regexp.MustCompile(`go[1-9]\.+[0-9]{1,2}(\.+[0-9]{1,2})?`)
 
@@ -25,36 +42,39 @@ func NewCommand() *Command {
 	return &Command{&http.Client{}}
 }
 
-func (cmd *Command) getDownloadURL(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+func (cmd *Command) getGoVersions(ctx context.Context, all bool) (GoVersions, error) {
+	u := baseURL
+	if all {
+		u += "&include=all"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return "", fmt.Errorf("new request: %w", err)
+		return nil, fmt.Errorf("new request: %w", err)
 	}
 
 	res, err := cmd.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request %s: %w", downloadURL, err)
+		return nil, fmt.Errorf("request %s: %w", u, err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("response status is %d", res.StatusCode)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("response status is %d", res.StatusCode)
-	}
 
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return "", fmt.Errorf("load the HTML document: %w", err)
+	var versions GoVersions
+	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
+		return nil, fmt.Errorf("decode response body: %w", err)
 	}
+	return versions, nil
+}
 
-	href, exists := doc.Find(".downloadtable .download").FilterFunction(func(_ int, s *goquery.Selection) bool {
-		text := s.Text()
-		return filepath.Ext(text) == ".gz" && strings.Contains(text, targetOS) && strings.Contains(text, targetArch)
-	}).Attr("href")
-	if !exists {
-		return "", fmt.Errorf("html element does not have href")
+func (g *GoVersion) getDownloadURL() string {
+	for _, file := range g.Files {
+		if file.Arch == runtime.GOARCH && file.OS == runtime.GOOS {
+			return downloadURL + file.Filename
+		}
 	}
-
-	return baseURL + href, nil
+	return ""
 }
 
 func (*Command) goEnv(ctx context.Context, env string) string {
