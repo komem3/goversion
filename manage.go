@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 const releaseURL = baseURL + "/doc/devel/release"
 
-var minorVersionRegex = regexp.MustCompile("^go[0-9]+(.[0-9]+)?$")
+var versionRegex = regexp.MustCompile(`^go[0-9]+(.[0-9]+)?((rc|beta|\.)[0-9]+)?$`)
 
 func (cmd *Command) OutputLocalVersions(ctx context.Context) error {
 	gopath := cmd.goEnv(ctx, "GOPATH")
@@ -26,11 +29,43 @@ func (cmd *Command) OutputLocalVersions(ctx context.Context) error {
 
 	var versions []string
 	for _, file := range files {
-		if minorVersionRegex.MatchString(file.Name()) {
+		if versionRegex.MatchString(file.Name()) {
 			versions = append(versions, file.Name())
 		}
 	}
 
-	fmt.Printf("local versions:\n%s\n", strings.Join(versions, "\n"))
+	sort.Sort(sort.Reverse(sort.StringSlice(versions)))
+	fmt.Printf("%s\n", strings.Join(versions, "\n"))
+	return nil
+}
+
+func (cmd *Command) OutputRemoteVersions(ctx context.Context) error {
+	versions, err := cmd.getGoVersions(ctx, true)
+	if err != nil {
+		return fmt.Errorf("get remote versions: %w", err)
+	}
+
+	var buf strings.Builder
+	for _, version := range versions {
+		buf.WriteString(version.Version + "\n")
+	}
+
+	fmt.Printf("%s", &buf)
+	return nil
+}
+
+func (cmd *Command) InstallSpecifyVersion(ctx context.Context, version string) error {
+	target := "golang.org/dl/" + version + "@latest"
+	log.Printf("[INFO] run: go install %s", target)
+	if _, err := exec.CommandContext(ctx, "go", "install", target).Output(); err != nil {
+		return fmt.Errorf("install %s: %w", version, err)
+	}
+
+	log.Printf("[INFO] run: go %s download", version)
+	if _, err := exec.CommandContext(ctx, version, "download").Output(); err != nil {
+		return fmt.Errorf("download %s: %w", version, err)
+	}
+
+	log.Printf("[INFO] install success")
 	return nil
 }

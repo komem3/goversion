@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
-	"regexp"
 	"runtime"
 )
 
@@ -31,8 +30,6 @@ const (
 	baseURL     = "https://go.dev/dl/?mode=json"
 	downloadURL = "https://storage.googleapis.com/golang/"
 )
-
-var versionRegex = regexp.MustCompile(`go[1-9]\.+[0-9]{1,2}(\.+[0-9]{1,2})?`)
 
 type Command struct {
 	client *http.Client
@@ -78,9 +75,7 @@ func (g *GoVersion) getDownloadURL() string {
 }
 
 func (*Command) goEnv(ctx context.Context, env string) string {
-	cmd := exec.CommandContext(ctx, "go", "env", env)
-
-	out, err := cmd.Output()
+	out, err := exec.CommandContext(ctx, "go", "env", env).Output()
 	if err != nil {
 		log.Printf("[ERR] go env %s: %v", env, err)
 		return ""
