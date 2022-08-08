@@ -17,7 +17,7 @@ But this method is very forgettable. For this reason, goversion provides a comma
 > move it to a directory where administrators can run it.
 
 ```
-go install github.com/komem3/goversion@latest && sudo $(go env GOPATH)/bin/goversion /usr/local/bin/
+go install github.com/komem3/goversion@latest && sudo mv $(go env GOPATH)/bin/goversion /usr/local/bin/
 ```
 
 ## Usage
