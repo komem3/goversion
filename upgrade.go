@@ -30,11 +30,7 @@ const userQuestion = "Current user is not root user.\n" +
 	recommendMessage +
 	"Do you continue upgrade process?"
 
-const recommendMessage = `Recommend that you run it again with the following command.
-
-	sudo $(go env GOPATH)/bin/goversion -upgrade
-
-`
+const recommendMessage = "It is recommended to run with administrator privileges.\n"
 
 func (cmd *Command) Upgrade(ctx context.Context) error {
 	if os.Getuid() != rootUserID &&

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -74,16 +73,15 @@ func (g *GoVersion) getDownloadURL() string {
 	return ""
 }
 
-func (*Command) goEnv(ctx context.Context, env string) string {
+func (*Command) goEnv(ctx context.Context, env string) (string, error) {
 	out, err := exec.CommandContext(ctx, "go", "env", env).Output()
 	if err != nil {
-		log.Printf("[ERR] go env %s: %v", env, err)
-		return ""
+		return "", fmt.Errorf("go env %s: %w", env, err)
 	}
 
 	output := string(out)
 	if output[len(output)-1] == '\n' {
 		output = output[:len(output)-1]
 	}
-	return output
+	return output, nil
 }

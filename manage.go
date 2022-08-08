@@ -17,9 +17,9 @@ const releaseURL = baseURL + "/doc/devel/release"
 var versionRegex = regexp.MustCompile(`^go[0-9]+(.[0-9]+)?((rc|beta|\.)[0-9]+)?$`)
 
 func (cmd *Command) OutputLocalVersions(ctx context.Context) error {
-	gopath := cmd.goEnv(ctx, "GOPATH")
-	if gopath == "" {
-		return nil
+	gopath, err := cmd.goEnv(ctx, "GOPATH")
+	if err != nil {
+		return err
 	}
 
 	files, err := os.ReadDir(filepath.Join(gopath, "bin"))
